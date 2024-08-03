@@ -1,0 +1,532 @@
+%% !TEX root = manual.tex
+
+\chapter{Building and Running SST/macro}
+\label{chapter:building}
+
+\section{Build and Installation of \sstmacro}
+\label{sec:buildinstall}
+
+
+\subsection{Downloading}
+\label{subsec:build:downloading}
+
+\sstmacro is available at \url{https://github.com/sstsimulator/sst-macro}.
+You can download the git repository directly:
+
+\begin{ShellCmd}
+shell> git clone https://github.com/sstsimulator/sst-macro.git 
+\end{ShellCmd}
+or for ssh
+
+\begin{ShellCmd}
+shell> git clone ssh://git@github.com/sstsimulator/sst-macro.git 
+\end{ShellCmd}
+or you can download a release tarball from \url{https://github.com/sstsimulator/sst-macro/releases}.
+
+\subsection{Dependencies}
+\label{subsec:build:dependencies}
+The most critical change is that C++11 is now a strict prerequisite. 
+Workarounds had previously existed for older compilers. 
+These are no longer supported.
+The following are dependencies for \sstmacro.
+
+\begin{itemize}
+\item (optional) Git is needed in order to clone the source code repository, but you can also download a tar (Section \ref{subsec:build:downloading}).
+\item Autoconf: 2.71 or later 
+\item Automake: 1.11.1 or later 
+\item Libtool: 2.4 or later 
+\item A C/C++ compiler is required with C++11 support.  gcc >=4.8.5 and clang >= 3.7 are known to work.
+\item (optional) OTF2: 2.0 or later for OTF2 trace replay.
+\item (optional) VTK 8.1 or later for creating Exodus files for traffic visualization
+\item (optional) Paraview 5.0 or greater for visualizing Exodus files
+\item (optional) Doxygen and Graphviz are needed to build the source code documentation.
+\item (optional) KCacheGrind or QCacheGrind to display call graphs
+\item (optional) Clang development libraries to enable SST source-to-source compiler
+\end{itemize}
+
+\subsection{Configuration and Building}
+\label{subsec:build:configure}
+
+SST/macro is an SST element library, proving a set of simulation components that run on the main SST core.  
+The SST core provides the parallel discrete event simulation manager that manages time synchronization and sending events in serial, MPI parallel, multi-threaded, or MPI + threaded mode.  
+The core does not provide any simulation components like node models, interconnect models, MPI trace readers, etc.  
+The actual simulation models are contained in the element library.  
+
+The SST core is a standalone executable that dynamically loads shared object files containing the element libraries.  
+For many element libraries, a Python input file is created that builds and connects the various simulation components.  
+For maximum flexibility, this will become the preferred mode.  
+However, SST/macro has historically had a text-file input \inlineshell{parameters.ini} that configures the simulation.  
+To preserve that mode for existing users, a wrapper Python script is provided that processes SST/macro input files.  
+SST/macro can also be compiled in standalone mode that uses its own simulation core.
+
+The workflow for installing and running on the main SST core is:
+\begin{itemize}
+\item	Build and install SST core
+\item Build and install the SST/macro element library \inlineshell{libmacro.so} 
+\item Make sure paths are properly configured for \inlineshell{libmacro.so} to be visible to the SST core (\inlineshell{SST_LIB_PATH})
+\item Run the \inlineshell{pysstmac} wrapper Python script that runs SST/macro-specific parameters OR
+\item Write a custom Python script 
+\end{itemize}
+
+The workflow for installing and running on the standalone SST/macro core:
+\begin{itemize}
+\item Build and install SST/macro standalone to generate \inlineshell{sstmac} executable
+\item Run \inlineshell{sstmac} with \inlineshell{*.ini} parameter files
+\end{itemize}
+
+\subsubsection{Build SST core}\label{subsec:buildSSTCore}
+The recommended mode for maximum flexibility is to run using the SST core downloadable from \url{http://sst-simulator.org/SSTPages/SSTMainDownloads}.
+Building and installing sets up the discrete event simulation core required for all SST elements.
+
+\subsubsection{Build SST/macro element library}\label{subsec:buildElementLib}
+If using the repo (not a release tarball), go to the top-level source directory and run:
+\begin{ShellCmd}
+top-level-src> ./bootstrap.sh
+\end{ShellCmd}
+This sets up the configure script. For builds, we recommend building outside the source tree:
+
+\begin{ShellCmd}
+sst-macro> mkdir build
+sst-macro> cd build
+sst-macro/build> ../configure --prefix=$PATH_TO_INSTALL 
+\end{ShellCmd}
+
+If wanting to use SST core instead of the macro standalone build, run:
+
+\begin{ShellCmd}
+sst-macro/build> ../configure --prefix=$PATH_TO_INSTALL --with-sst-core=$PATH_TO_SST_CORE CC=$MPICC CXX=$MPICXX
+\end{ShellCmd}
+
+\inlinecode{PATH_TO_SST_CORE} should be the prefix install directory used when installing the core.  
+The MPI compilers should be the same compilers used for building SST core.
+
+SST/macro can still be built in standalone mode for features that have not been fully migrated to the SST core. 
+This includes numerous statistics which are not yet supported by SST core.
+The installation and running are the same for both modes - simply remove the \inlineshell{--with--sst-core} parameter.  
+A complete list of options for building can be seen by running \inlineshell{../configure --help}.   
+For autoconf, options are generally divided into flags for 3rd party dependencies (\inlineshell{-with-X=})
+and flags enabling or disabling features (\inlineshell{--enable-X}).
+Some common options are:
+
+\begin{itemize}
+\item --with-otf2[=location]: Enable OTF2 trace replay, requires a path to OTF2 installation.
+\item --with-clang[=location]: Enable Clang source-to-source tools by pointing to Clang development libraries
+\item --(dis|en)able-call-graph: Enables the collection of simulated call graphs, which can be viewed with KCacheGrind
+\item --(dis|en)able-multithread: Enables a multi-threaded backend
+\end{itemize}
+
+Once configuration has completed, printing a summary of the things it found, simply type \inlineshell{make}.  
+
+\subsection{Post-Build}
+\label{subsec:postbuild}
+
+If the build did not succeed open an issue on the github page at \url{https://github.com/sstsimulator/sst-macro/issues} or contact \sstmacro support for help (sst-macro-help@sandia.gov).
+
+If the build was successful, it is recommended to run the range of tests to make sure nothing went wrong.  
+To do this, and also install \sstmacro  to the install path specified during installation, run the following commands:
+
+\begin{ShellCmd}
+sst-macro/build> make check
+sst-macro/build> make install
+sst-macro/build> make installcheck
+\end{ShellCmd}
+Make check runs all the tests we use for development, which checks all functionality of the simulator.  
+Make installcheck compiles some of the skeletons that come with \sstmacro, linking against the installation.  
+
+\aside{
+Important:  Applications and other code linking to \sstmacro use Makefiles that use the \inlineshell{sst++} or \inlineshell{sstcc} compiler wrappers
+that are installed there for convenience to figure out where headers and libraries are.  When making your skeletons and components, make sure your path is properly configured.
+}
+
+\subsection{GNU pth for user-space threading: DEPRECATED}\label{subsubsec:pth}
+By default, Linux usually ships with \inlineshell{ucontext} which enables user-space threading.
+Mac OS X previously required an extra library be installed (GNU pth).
+These are no longer required and are deprecated in favor of fcontext,
+which is now integrated with the SST/macro distribution (see below).
+
+For those still wishing to use pth, GNU pth is easy to download and install from source.
+Even easier is MacPorts. 
+
+\begin{ShellCmd}
+shell> sudo port install pth
+\end{ShellCmd}
+
+MacPorts installed all libraries to \inlineshell{/opt/local}. 
+When configuring, simply add \inlineshell{--with-pth=\$PATH_TO_PTH} as an argument.
+For MacPorts installation, this means configuring SST/macro with:
+
+\begin{ShellCmd}
+../configure --with-pth=/opt/local
+\end{ShellCmd}
+
+\subsection{fcontext}\label{subsubsec:fcontext}
+The fcontext library for user-space threading is now integrated directly with the SST/macro distribution.
+This provides much greater performance than GNU pth or standard Linux ucontext.
+Users may see as much as a 20\% improvement in simulator performance.
+fcontext is be activated by default. 
+
+
+\subsection{Known Issues}
+\label{subsec:build:issues}
+
+
+\begin{itemize}
+\item Any build or runtime problems should be reported to sst-macro-help@sandia.gov.  We try to respond as quickly as possible.
+\item make -j: When doing a parallel compile dependency problems can occur.  
+There are a lot of inter-related libraries and files.  
+Sometimes the Makefile dependency tracker gets ahead of itself and you will get errors about missing libraries and header files.
+If this occurs, restart the compilation.  If the error vanishes, it was a parallel dependency problem.
+If the error persists, then it's a real bug.
+\item Ubuntu: The Ubuntu linker performs too much optimization on dynamically linked executables.
+Some call it a feature.  I call it a bug.
+In the process it throws away symbols it actually needs later. The build system should automatically fix Ubuntu flags.
+If still having issues, make sure that '-Wl,--no-as-needed' is given in LDFLAGS.
+
+The problem occurs when the executable depends on libA which depends on libB.
+The executable has no direct dependence on any symbols in libB.
+Even if you add \inlineshell{-lB} to the \inlineshell{LDFLAGS} or \inlineshell{LDADD} variables,
+the linker ignores them and throws the library out.
+It takes a dirty hack to force the linkage.
+If there are issues, contact the developers at sst-macro-help@sandia.gov and report the problem. 
+\end{itemize}
+
+\section{Building DUMPI}
+\label{sec:building:dumpi}
+
+By default, DUMPI is configured and built along with SST/macro with support for reading and parsing DUMPI traces, known as libundumpi.  
+DUMPI binaries and libraries are also installed along with everything for \sstmacro during make install.   
+DUMPI can be used as its own library within the \sstmacro source tree by changing to \inlineshell{sst-macro/sst-dumpi}, 
+where you can change its configuration options.  
+
+DUMPI can also be used as stand-alone tool (\eg~for simplicity if you're only tracing). 
+To get DUMPI by itself, either copy the \inlineshell{sstmacro/dumpi} directory somewhere else or visit \url{https://github.com/sstsimulator/sst-dumpi} and follow similar instructions for obtaining \sstmacro.
+
+To see a list of configuration options for DUMPI, run \inlineshell{./configure --help}.  
+If you're trying to configure DUMPI for trace collection, use \inlineshell{--enable-libdumpi}.
+Your build process might look like this (if you're building in a separate directory from the dumpi source tree) :
+
+\begin{ShellCmd}
+sst-dumpi/build> ../configure --prefix=/path-to-install --enable-libdumpi
+sst-dumpi/build> make
+sst-dumpi/build> sudo make install
+\end{ShellCmd}
+
+\subsection{Known Issues}
+\label{subsubsec:building:dumpi:issues}
+
+\begin{itemize}
+\item When compiling on platforms with compiler/linker wrappers, e.g. ftn (Fortran) and CC (C++) compilers 
+at NERSC, the libtool configuration can get corrupted.  The linker flags automatically added by the 
+wrapper produce bad values for the predeps/postdeps variable in the libtool script in the top 
+level source folder.  When this occurs, the (unfortunately) easiest way to fix this is to manually modify
+the libtool script.  Search for predeps/postdeps and set the values to empty.
+This will clear all the erroneous linker flags.  The compilation/linkage should still work since 
+all necessary flags are set by the wrappers. 
+\end{itemize}
+
+
+\section{Building Clang source-to-source support}
+\label{sec:buildingClang}
+
+To enable Clang source-to-source support it is not sufficient to have a Clang compiler.  You have to install a special libTooling library for Clang.
+
+\subsection{Building Clang libTooling}
+\label{subsec:buildingClanglibTooling}
+
+\subsubsection{The Easy Way: Mac OS X}
+\label{subsubsec:libToolingOSX}
+Using MacPorts on OS X, it is trivial to obtain a Clang installation that includes libTooling:
+
+\begin{ViFile}
+port install clang-devel
+\end{ViFile}
+
+MacPorts will place the Clang compilers in \inlineshell{/opt/local/bin}.  Enable the devel version of Clang with:
+
+\begin{ViFile}
+port select --set clang mp-clang-devel
+\end{ViFile}
+
+The Clang libraries will be placed into \inlineshell{/opt/local/libexec/llvm-devel/lib}, so the appropriate option to the sst-macro configure script is \inlineshell{--with-clang=/opt/local/libexec/llvm-devel}.
+
+\subsubsection{The Hard Way}
+\label{subsubsec:libTooling}
+For operating systems other than OS X, building Clang support has a few steps (and takes quite a while to build), but is straightforward.
+Instead of having an all-in-one tarball, you will have to download several different components. You can install more if you want build libc++, but these are not required.
+Obtain the following from \url{http://releases.llvm.org/download.html}.
+
+\begin{itemize}
+\item LLVM source code
+\item Clang source code
+\item libc++ source code
+\item libc++abi source code
+\item compiler-rt source code
+\item (optional, not recommended) OpenMP source code
+\end{itemize}
+
+Setting up the folders can be done automatically using the \inlineshell{setup-clang} script in \inlineshell{bin/tools} folder in sst-macro. Put all of downloaded tarballs in a folder, e.g. \inlineshell{clang-llvm}. Then run \inlineshell{setup-clang} in the directory. 
+It will automatically place files where LLVM needs them.
+LLVM is the ``driver'' for the entire build. Everything else is a subcomponent. 
+The setup script places each tarball in the following subfolders of the main LLVM folder
+
+\begin{itemize}
+\item tools/clang
+\item projects/compiler-rt
+\item projects/libcxx
+\item projects/libcxxabi
+\item projects/openmp
+\end{itemize}
+
+Using CMake (assuming you are in a build subdirectory of the LLVM tree), you would run the script below to configure.
+You no longer need to use Clang to build Clang. 
+For the most stable results, though, you should a pre-existing Clang compiler to build the Clang development libraries.
+
+\begin{ViFile}
+cmake ../llvm \
+  -DCMAKE_CXX_COMPILER=clang++ \
+  -DCMAKE_C_COMPILER=clang \
+  -DCMAKE_CXX_FLAGS="-O3" \
+  -DCMAKE_C_FLAGS="-O3" \
+  -DCMAKE_INSTALL_PREFIX=$install
+\end{ViFile}
+
+To build a complete LLVM/Clang run:
+
+\begin{ViFile}
+cmake ../llvm \
+  -DCMAKE_CXX_COMPILER=clang++ \
+  -DCMAKE_C_COMPILER=clang \
+  -DCMAKE_CXX_FLAGS="-O3" \
+  -DCMAKE_C_FLAGS="-O3" \
+  -DLLVM_ENABLE_LIBCXX=ON \
+  -DLLVM_TOOL_COMPILER_RT_BUILD=ON \
+  -DLLVM_TOOL_LIBCXXABI_BUILD=ON \
+  -DLLVM_TOOL_LIBCXX_BUILD=ON \
+  -DCMAKE_INSTALL_PREFIX=$install
+\end{ViFile}
+
+On some systems, linking Clang might blow out your memory. If that is the case, you have to set \inlineshell{LD=ld.gold} for the linker.
+Run \inlineshell{make install}. The libTooling library will now be available at the \inlineshell{\$install} location.
+
+Any compiler used for SST (g++, icpc, clang++) can generally be mixed with most versions of the libtooling source-to-source library.
+NOTE: The same compiler used to build SST must have been used to build the libtooling library.
+However, the table below contains versions that are recommended or approved and which combinations are untested (but may work).
+
+\begin{tabular}{l l}
+\hline
+Compiler to build SST & Libtooling version \\
+\hline
+\hline
+Clang 4,5,6 & 4,5,6 \\
+Clang 7,8 & 7,8 \\
+GCC 4.8-6 & 4-7 \\
+GCC 7- & ? \\
+ ? & 8 \\
+\hline
+\end{tabular}
+
+\subsection{Building SST/macro with Clang}
+\label{subsec:buildingWithClang}
+
+Now that clang is installed, you only need to add the configure flag \inlineshell{--with-clang} pointing it to the install location from above.
+You must use the same Clang compiler to build SST that you used to build libTooling.
+
+\begin{ShellCmd}
+../configure CXX=clang++ CC=clang --with-clang=$install
+\end{ShellCmd}
+
+Clang source-to-source support will now be built into the \inlineshell{sst++} compiler. 
+If Clang development libraries are available in the default system path (as is often the case with LLVM models, e..g \inlineshell{module load llvm}),
+then you can just put \inlineshell{--with-clang}.
+
+\section{Building with OTF2}
+\label{sec:buildingOtf2}
+OTF2 is a general purpose trace format with specialized callbacks for the MPI API. OTF2 traces are generated by programs compiled with Score-P compiler wrappers. SST/macro 8.1 supports OTF2 trace replay and OTF2 trace generation when configured with 
+
+\begin{ViFile}
+./configure --with-otf2=<OTF2-root>	
+\end{ViFile}
+where the OTF2 root is the installation prefix for a valid OTF2 build. OTF2 can be obtained from the Score-P project at {http://www.vi-hps.org/projects/score-p}.
+Detailed build and usage instructions can be found on the website.
+
+%\subsection{Building with VTK (Beta)}
+%\label{sec:buildingVTK}
+
+\section{Running an Application}\label{sec:building:running}
+\subsection{SST Python Scripts}
+\label{subsec:SSTPythonScripts}
+
+Full details on building SST Python scripts can be found at \url{http://sst-simulator.org}.  To preserve the old parameter format in the near-term, SST/macro provides the \inlineshell{pysstmac} script:
+
+\begin{ViFile}
+export SST_LIB_PATH=$SST_LIB_PATH:$SSTMAC_PREFIX/lib
+
+options="$@"
+$SST_PREFIX/bin/sst $SSTMAC_PREFIX/include/python/default.py --model-options="$options"
+\end{ViFile}
+
+The script configures the necessary paths and then launches with a Python script \inlineshell{default.py}.  Interested users can look at the details of the Python file to understand how SST/macro converts parameter files into a Python config graph compatible with SST core.
+Assuming the path is configured properly, users can run
+
+\begin{ShellCmd}
+shell>pysstmac -f parameters.ini
+\end{ShellCmd}
+with a properly formatted parameter file. If running in standalone mode, the command would be similar (but different).
+
+\begin{ShellCmd}
+shell>sstmac -f parameters.ini
+\end{ShellCmd}
+since there is no Python setup involved.
+
+
+\subsection{Building Skeleton Applications}
+\label{sec:tutorial:runapp}
+
+To demonstrate how an external skeleton application is run in \sstmacro, we'll use a very simple send-recv program located in \inlineshell{skeletons/sendrecv}.
+We will take a closer look at the actual code in Section \ref{sec:tutorial:basicmpi}.
+After \sstmacro has been installed and your PATH variable set correctly, for standalone core users can run:
+
+\begin{ShellCmd}
+sst-macro> cd skeletons/sendrecv
+sst-macro/skeletons/sendrecv> make
+sst-macro/skeleton/sendrecv> sstmac -f parameters.ini --exe=./runsstmac
+\end{ShellCmd}
+
+You should see some output that tells you 1) the estimated total (simulated) runtime of the simulation, and 
+2) the wall-time that it took for the simulation to run.  
+Both of these numbers should be small since it's a trivial program. 
+This is how simulations generally work in \sstmacro: you build skeleton code and link it with the simulator to produce an importable library.  
+The importable library contains hooks for loading a skeleton app into the simulator.
+NOTE: \inlineshell{runsstmac} appears to be an executable, but is actually built as a shared library. 
+If using a regular compiler (e.g. gcc), the Makefile would produce an executable \inlineshell{runsstmac}.
+To ensure that building apps for SST require no modification to an existing build system,
+SST simple builds a shared library \inlineshell{runsstmac} rather than requiring renaming to the standard convention
+\inlineshell{librunsstmac.so}.
+
+\subsection{Makefiles}
+\label{subsec:tutorial:makefiles}
+We recommend structuring the Makefile for your project like the one seen in \inlineshell{skeletons/sendrecv/Makefile} :
+
+\begin{ViFile}
+TARGET := runsstmac
+SRC := $(shell ls *.c) 
+
+CXX :=      $(PATH_TO_SST)/bin/sst++
+CC :=        $(PATH_TO_SST)/bin/sstcc
+CXXFLAGS := ...
+CPPFLAGS := ...
+LIBDIR :=  ...
+PREFIX :=   ...
+LDFLAGS :=  -Wl,-rpath,$(PREFIX)/lib
+...
+\end{ViFile}
+The SST compiler wrappers \inlineshell{sst++} and \inlineshell{sstcc} automagically configure and map the code for simulation. 
+
+\subsection{Command-line arguments}
+\label{subsec:tutorial:cmdline}
+
+There are few common command-line arguments with \sstmacro, listed below
+
+\begin{itemize}
+\item -h/--help: Print some typical help info
+\item -f [parameter file]: The parameter file to use for the simulation.  
+This can be relative to the current directory, an absolute path, or the name of a pre-set file that is in sstmacro/configurations 
+(which installs to /path-to-install/include/configurations, and gets searched along with current directory). 
+\item --dumpi: If you are in a folder with all the DUMPI traces, you can invoke the main \inlinecode{sstmac} executable with this option.  This replays the trace in a special debug mode for quickly validating the correctness of a trace.
+\item --otf2: If you are in a folder with all the OTF2 traces, you can invoke the main \inlinecode{sstmac} executable with this option.  This replays the trace in a special debug mode for quickly validating the correctness of a trace.
+\item -d [debug flags]: A list of debug flags to activate as a comma-separated list (no spaces) - see Section \ref{sec:dbgoutput}
+\item -p [parameter]=[value]: Setting a parameter value (overrides what is in the parameter file)
+\item -c: If multithreaded, give a comma-separated list (no spaces) of the core affinities to use.
+\end{itemize}
+
+\section{Parallel Simulations}
+\label{sec:PDES}
+
+\sstmacro currently supports running parallel discrete event simulation (PDES) in distributed memory (MPI) mode using SST Core.  
+Parallelism is no longer supported in the standalone (built-in) core, and thread parallelism is not currently supported with SST Core.
+Please consult SST Core documentation for details on parallel execution.
+
+%\subsection{Distributed Memory Parallel}
+%\label{subsec:mpiparallel}
+%Configure will automatically check for MPI.
+%Your configure should look something like:
+
+%\begin{ShellCmd}
+%sst-macro/build> ../configure CXX=mpicxx CC=mpicc ...
+%\end{ShellCmd}
+%With the above options, you can just compile and go.
+%\sstmacro is run exactly like the serial version, but is spawned like any other MPI parallel program.
+%Use your favorite MPI launcher to run, e.g. for OpenMPI
+
+%\begin{ShellCmd}
+%mysim> mpirun -n 4 sstmac -f parameters.ini
+%\end{ShellCmd}
+%or for MPICH
+
+%\begin{ShellCmd}
+%mysim> mpiexec -n 4 sstmac -f parameters.ini
+%\end{ShellCmd}
+
+%Even if you compile for MPI parallelism, the code can still be run in serial with the same configuration options.
+%\sstmacro will notice the total number of ranks is 1 and ignore any parallel options.
+%When launched with multiple MPI ranks, \sstmacro will automatically figure out how many partitions (MPI processes) 
+%you are using, partition the network topology into contiguous blocks, and start running in parallel.   
+
+%\subsection{Shared Memory Parallel}
+%\label{subsec:parallelopt}
+%In order to run shared memory parallel, you must configure the simulator with the \inlineshell{--enable-multithread} flag.
+%Partitioning for threads is currently always done using block partitioning and there is no need to set an input parameter.
+%Including the integer parameter \inlineshell{sst_nthread} specifies the number of threads to be used (per rank in MPI+pthreads mode) in the simulation.
+%The following configuration options may provide better threaded performance.
+%\begin{itemize}
+%\item\inlineshell{--enable-spinlock} replaces pthread mutexes with spinlocks.  Higher performance and recommended when supported.
+%\item\inlineshell{--enable-cpu-affinity} causes \sstmacro to pin threads to specific cpu cores.  When enabled, \sstmacro will require the
+%\inlineshell{cpu_affinity} parameter, which is a comma separated list of cpu affinities for each MPI task on a node.  \sstmacro will sequentially
+%pin each thread spawned by a task to the next next higher core number.  For example, with two MPI tasks per node and four threads per MPI task,
+%\inlineshell{cpu_affinity = 0,4} will result in MPI tasks pinned to cores 0 and 4, with pthreads pinned to cores 1-3 and 5-7.
+%For a threaded only simulation \inlineshell{cpu_affinity = 4} would pin the main process to core 4 and any threads to cores 5 and up.
+%The affinities can also be specified on the command line using the \inlineshell{-c} option.
+%Job launchers may in some cases provide duplicate functionality and either method can be used.
+%\end{itemize}
+
+\subsection{Warnings for Parallel Simulation}
+\label{subsec:parallelwarn}
+\begin{itemize}
+\item If the number of simulated processes specified by e.g. \inlinefile{aprun -n 100} does not match the number of nodes in the topology (i.e. you are not space-filling the whole simulated machine), parallel performance will suffer. Partitioning is by node, not MPI rank.
+\end{itemize}
+
+\aside{
+Parallel simulation speedups are likely to be modest for small runs.
+Speeds are best with serious congestion or heavy interconnect traffic.
+Weak scaling is usually achievable with 100-500 simulated MPI ranks per logical process.
+Even without speedup, parallel simulation can certainly be useful in overcoming memory constraints.
+}
+
+\section{Debug Output}
+\label{sec:dbgoutput}
+\sstmacro defines a set of debug flags that can be specified in the parameter file to control debug output printed by the simulator.
+To list the set of all valid flags with documentation, the user can run
+
+\begin{ShellCmd}
+bin> ./sstmac --debug-flags
+\end{ShellCmd}
+
+which will output something like
+
+\begin{ViFile}
+    mpi
+        print all the basic operations that occur on each rank - only API calls are
+        logged, not any implementation details
+    router
+        print all operations occurring in the router
+     ....
+\end{ViFile}
+
+
+To turn on debug output, add the following to the input file
+
+\begin{ViFile}
+debug = mpi 
+\end{ViFile}
+listing all flags you want separated by spaces.
+

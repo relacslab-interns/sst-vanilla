@@ -1,0 +1,227 @@
+% !TEX root = developer.tex
+
+\chapter{\sstmacro Classes}\label{chapter:classes}
+
+\section{Factory Types}\label{sec:factory}
+We here introduce factory types, i.e. polymorphic types linked to keywords in the input file.
+String parameters are linked to a lookup table, finding a factory that produces the desired type.
+In this way, the user can swap in and out C++ classes using just the input file.
+There are many distinct factory types relating to the different hardware components.
+There are factories for topology, NIC, node, memory, switch, routing algorithm - the list goes on.
+Here show how to declare a new factory type and implement various polymorphic instances.
+The example files can be found in \inlineshell{tutorials/programming/factories}.
+
+\subsection{Usage}\label{subsec:usage}
+Before looking at how to implement factory types, let's look at how they are used.
+Here we consider the example of an abstract interface called \inlinecode{Actor}.
+The code example is found in \inlineshell{main.cc}. The file begins
+
+\begin{CppCode}
+#include <sstmac/skeleton.h>
+#include "actor.h"
+
+namespace sstmac {
+    namespace tutorial {
+
+int main(int argc, char **argv)
+{
+\end{CppCode}
+The details of declaring and using external apps is found in the user's manual.
+Briefly, the \sstmacro compiler wrapper reroutes the main function to be callable within a simulation.
+From here it should be apparent that we defined a new application with name \inlinecode{rob_reiner}.
+Inside the main function, we create an object of type \inlinecode{Actor}.
+
+\begin{CppCode}
+auto actor_name = getParams().find<std::string>("actor_name");
+Actor* the_guy = sprockit::create<Actor>(actor_name, getParams());
+the_guy->act();
+return 0;
+\end{CppCode}
+Unseen here, there is an \inlinecode{Actor} factory called via the \inlinecode{sprockit::create} function to create the object.
+The value of \inlineshell{actor_name} is read from the input file \inlineshell{parameters.ini} in the directory.
+Depending on the value in the input file, a different type will be created.
+The input file contains several parameters related to constructing a machine model - ignore these for now.
+The important parameters are:
+
+\begin{ViFile}
+node {
+ app1 {
+  exe = ./runtest
+  biggest_fan = jeremy_wilke
+  actor_name = patinkin
+  sword_hand = right
+ }
+}
+\end{ViFile}
+
+Using the Makefile in the directory, if we compile and run the resulting executable we get the output
+
+\begin{ViFile}
+Hello. My name is Inigo Montoya. You killed my father. Prepare to die!
+Estimated total runtime of           0.00000000 seconds
+SST/macro ran for       0.0025 seconds
+\end{ViFile}
+
+If we change the parameters:
+
+\begin{ViFile}
+node {
+ app1 {
+  exe = ./runtest
+  biggest_fan = jeremy_wilke
+  actor_name = guest
+  num_fingers = 6
+ }
+}
+\end{ViFile}
+
+we now get the output
+
+\begin{ViFile}
+You've been chasing me your entire life only to fail now.
+I think that's the worst thing I've ever heard. How marvelous.
+Estimated total runtime of           0.00000000 seconds
+SST/macro ran for       0.0025 seconds
+\end{ViFile}
+
+Changing the values produces a different class type and different behavior.
+Thus we can manage polymorphic types by changing the input file.
+
+\subsection{Base Class}\label{subsec:baseClass}
+To declare a new factory type, you must include the factory header file
+
+\begin{CppCode}
+#include <sprockit/factories/factory.h>
+
+namespace sstmac {
+    namespace tutorial {
+
+class Actor {
+\end{CppCode}
+
+
+We now define the public interface for the actor class
+
+\begin{CppCode}
+ public:
+  Actor(SST::Params& params);
+  
+  virtual void act() = 0;
+
+  virtual ~actor(){}
+\end{CppCode}
+Again, we must have a public, virtual destructor.
+Each instance of the \inlinecode{Actor} class must implement the \inlinecode{act} method.
+
+For factory types, each class must take a parameter object in the constructor.
+The parent class has a single member variable
+
+\begin{CppCode}
+ protected:
+  std::string biggest_fan_;
+\end{CppCode}
+
+Inside the class, we need to register and describe the base type to SST.
+
+\begin{CppCode}
+  SST_ELI_DECLARE_BASE(Actor)
+  SST_ELI_DECLARE_DEFAULT_INFO()
+  SST_ELI_DECLARE_CTOR(SST::Params&)
+\end{CppCode}
+In almost all cases, only the default info is needed.
+
+Moving to the \inlineshell{actor.cc} file, we see the implementation
+
+\begin{CppCode}
+namespace sstmac {
+    namespace tutorial {
+
+Actor::Actor(SST::Params& params)
+{
+  biggest_fan_ = params.find<std::string>("biggest_fan");
+}
+\end{CppCode}
+We initialize the member variable from the parameter object.  
+
+\subsection{Child Class}\label{subsec:childClass}
+Let's now look at a fully implemented, complete \inlinecode{Actor} type.  We declare it
+
+\begin{CppCode}
+#include "actor.h"
+
+namespace sstmac {
+    namespace tutorial {
+
+class MandyPatinkin :
+    public Actor
+{
+ public:
+   MandyPatinkin(SST::Params& params);
+  
+   SST_ELI_REGISTER_DERIVED(
+    Actor,
+    MandyPatinkin,
+    "macro",
+    "patinkin",
+    SST_ELI_ELEMENT_VERSION(1,0,0),
+    "He's on one of those shows now... NCIS? CSI?")
+\end{CppCode}
+
+We have a single member variable
+
+\begin{CppCode}
+ private:
+  std::string sword_hand_;
+\end{CppCode}
+
+This is a complete type that can be instantiated. 
+To create the class we will need the constructor:
+
+\begin{CppCode}
+MandyPatinkin(SST::Params& params);
+\end{CppCode}
+
+And finally, to satisfy the \inlinecode{actor} public interface, we need
+
+\begin{CppCode}
+virtual void act() override;
+\end{CppCode}
+
+In the class declaration, we need to invoke the macro \inlinecode{SST_ELI_REGISTER_DERIVED} to register
+the new child class type with the given string identifier.
+The first argument is the parent base class. 
+The second argument is the specific child type.
+The third argument is the element library to register into  (in the case macro).
+The fourth argument is the string descriptor that will be linked to the type.
+Finally, a version declaration and documentation string should be given with a brief description.
+We can now implement the constructor:
+
+\begin{CppCode}
+MandyPatinkin::MandyPatinkin(SST::Params& params) :
+  actor(params)
+{
+  sword_hand_ = params.find<std::string>("sword_hand");
+
+  if (sword_hand_ == "left"){
+    sprockit::abort("I am not left handed!");
+  }
+  else if (sword_hand_ != "right"){
+      spkt_abort_printf(value_error,
+          "Invalid hand specified: %s",
+          sword_hand_.c_str());
+  }
+}
+\end{CppCode}
+The child class must invoke the parent class method. 
+Finally, we specify the acting behavior
+
+\begin{CppCode}
+void MandyPatinkin::act()
+{
+    std::cout << "Hello. My name is Inigo Montoya. You killed my father. Prepare to die!"
+              << std::endl;
+}
+\end{CppCode}
+
+Another example \inlineshell{guest.h} and \inlineshell{guest.cc} in the code folder shows the implementation for the second class.
+

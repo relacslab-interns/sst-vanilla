@@ -1,0 +1,70 @@
+
+%% !TEX root = manual.tex
+
+\section{Network Statistics}
+\label{sec:tutorials:packetStats}
+
+Here we describe a few of the network statistics that can be collected and the basic mechanism for activating them.
+These statistics are usually collected on either the NIC, switch crossbar, or switch output buffers.
+These are based on the XmitWait and XmitBytes performance counters from OmniPath,
+and aim to provide similar statistics as those from production systems.
+
+\subsection{XmitBytes}
+\label{subsec:xmitbytes}
+To active a message size histogram on the NIC or the switches to determine the data sent by individual packets, the parameter file should include, for example:
+
+\begin{ViFile}
+node {
+ nic {
+  injection {
+   xmit_bytes {
+     output = csv
+     type = accumulator
+     group = test
+   }
+  }
+ } 
+}
+\end{ViFile}
+In contrast the custom statistics above, this is a row-table statistic that can have different types and outputs.
+The same stat can be activated in both the \inlinecode{node.nic.injection} and \inlinecode{switch} namespaces.
+
+\subsection{XmitWait}
+\label{subsec:xmitwait}
+To estimate congestion, SST/macro provides an \inlinecode{xmit_wait} statistic.
+This counts the total amount of time spent in stalls due to lack of credits.
+The time is accumulated and reported in seconds.
+
+\begin{ViFile}
+node {
+ nic {
+  injection {
+   xmit_wait {
+     output = csv
+     type = accumulator
+     group = test
+   }
+  }
+ }
+}
+\end{ViFile}
+The same stat can be activated in both the \inlinecode{node.nic.injection} and \inlinecode{switch} namespaces.
+
+\subsection{XmitFlows}
+\label{subsec:xmitflows}
+The previous statistics track the bytes sent by packets and as such are agnostic to the messages (or flows) sending them.
+If interested in the flow-level statistics, it can be activated as:
+
+\begin{ViFile}
+node {
+ app1 {
+  mpi {
+    xmit_flows {
+
+    }
+  }
+ }
+}
+\end{ViFile}
+
+

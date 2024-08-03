@@ -1,0 +1,1040 @@
+{
+  "program_options": {
+    "verbose": "1",
+    "stop-at": "0 ns",
+    "print-timing-info": "false",
+    "heartbeat-period": "",
+    "timebase": "1ps",
+    "partitioner": "sst.single",
+    "timeVortex": "sst.timevortex.priority_queue",
+    "interthread-links": "false",
+    "output-prefix-core": "@x SST Core: "
+  },
+  "components": [
+    {
+      "name": "cpu",
+      "type": "ariel.ariel",
+      "params": {
+        "verbose": "1",
+        "clock": "2GHz",
+        "maxcorequeue": "1024",
+        "maxissuepercycle": "2",
+        "maxtranscore": "16",
+        "pipetimeout": "0",
+        "corecount": "2",
+        "arielmode": "0",
+        "appargcount": "0",
+        "max_insts": "10000",
+        "executable": "./app/opal_test.elf",
+        "node": "0",
+        "launchparamcount": "1",
+        "launchparam0": "-ifeellucky"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "memmgr",
+          "slot_number": 0,
+          "type": "Opal.MemoryManagerOpal",
+          "params": {
+            "opal_latency": "30ps"
+          },
+          "subcomponents": [
+            {
+              "slot_name": "translator",
+              "slot_number": 0,
+              "type": "ariel.MemoryManagerSimple",
+              "params": {
+                "pagecount0": "2129920",
+                "pagesize0": "4096"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mmu",
+      "type": "Samba",
+      "params": {
+        "clock": "2GHz",
+        "corecount": "2",
+        "opal_latency": "30ps",
+        "os_page_size": "4",
+        "perfect": "0",
+        "sizes_L1": "3",
+        "page_size1_L1": "4",
+        "page_size2_L1": "2048",
+        "page_size3_L1": "1048576",
+        "assoc1_L1": "4",
+        "size1_L1": "32",
+        "assoc2_L1": "4",
+        "size2_L1": "32",
+        "assoc3_L1": "4",
+        "size3_L1": "4",
+        "sizes_L2": "4",
+        "page_size1_L2": "4",
+        "page_size2_L2": "2048",
+        "page_size3_L2": "1048576",
+        "assoc1_L2": "12",
+        "size1_L2": "1536",
+        "assoc2_L2": "32",
+        "size2_L2": "32",
+        "assoc3_L2": "4",
+        "size3_L2": "16",
+        "levels": "2",
+        "max_width_L1": "3",
+        "max_outstanding_L1": "2",
+        "max_outstanding_PTWC": "2",
+        "latency_L1": "4",
+        "parallel_mode_L1": "1",
+        "max_outstanding_L2": "2",
+        "max_width_L2": "4",
+        "latency_L2": "10",
+        "parallel_mode_L2": "0",
+        "self_connected": "0",
+        "page_walk_latency": "200",
+        "size1_PTWC": "32",
+        "assoc1_PTWC": "4",
+        "size2_PTWC": "32",
+        "assoc2_PTWC": "4",
+        "size3_PTWC": "32",
+        "assoc3_PTWC": "4",
+        "size4_PTWC": "32",
+        "assoc4_PTWC": "4",
+        "latency_PTWC": "10",
+        "emulate_faults": "1"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "pagefaulthandler",
+          "slot_number": 0,
+          "type": "Opal.PageFaultHandler",
+          "params": {
+            "opal_latency": "30ps"
+          }
+        }
+      ]
+    },
+    {
+      "name": "opal",
+      "type": "Opal",
+      "params": {
+        "verbose": "1",
+        "clock": "2GHz",
+        "num_nodes": "1",
+        "max_inst": "32",
+        "shared_mempools": "1",
+        "shared_mem.mempool0.start": "134217728",
+        "shared_mem.mempool0.size": "2097152",
+        "shared_mem.mempool0.frame_size": "4",
+        "shared_mem.mempool0.mem_type": "0",
+        "node0.cores": "2",
+        "node0.allocation_policy": "1",
+        "node0.page_migration": "0",
+        "node0.page_migration_policy": "0",
+        "node0.num_pages_to_migrate": "0",
+        "node0.latency": "2000",
+        "node0.memory.start": "0",
+        "node0.memory.size": "131072",
+        "node0.memory.frame_size": "4",
+        "node0.memory.mem_type": "0",
+        "num_ports": "4"
+      }
+    },
+    {
+      "name": "rtr_internal_network",
+      "type": "merlin.hr_router",
+      "params": {
+        "num_ports": "7",
+        "id": "0",
+        "link_bw": "80GiB/s",
+        "xbar_bw": "80GiB/s",
+        "flit_size": "8B",
+        "input_latency": "20ps",
+        "output_latency": "20ps",
+        "input_buf_size": "1KB",
+        "output_buf_size": "1KB"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "topology",
+          "slot_number": 0,
+          "type": "merlin.singlerouter"
+        }
+      ]
+    },
+    {
+      "name": "l1cache_0",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "verbose": "30",
+        "cache_frequency": "2GHz",
+        "cache_size": "32KiB",
+        "associativity": "8",
+        "access_latency_cycles": "4",
+        "L1": "1",
+        "maxRequestDelay": "1000000"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l2cache_0",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "cache_frequency": "2GHz",
+        "cache_size": "256KiB",
+        "associativity": "8",
+        "access_latency_cycles": "6",
+        "mshr_num_entries": "16"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "Opal.OpalMemNIC",
+          "params": {
+            "node": "0",
+            "shared_memory": "1",
+            "network_bw": "96GiB/s",
+            "local_memory_size": "134217728",
+            "group": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l1cache_1",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "verbose": "30",
+        "cache_frequency": "2GHz",
+        "cache_size": "32KiB",
+        "associativity": "8",
+        "access_latency_cycles": "4",
+        "L1": "1",
+        "maxRequestDelay": "1000000"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l2cache_1",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "cache_frequency": "2GHz",
+        "cache_size": "256KiB",
+        "associativity": "8",
+        "access_latency_cycles": "6",
+        "mshr_num_entries": "16"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "Opal.OpalMemNIC",
+          "params": {
+            "node": "0",
+            "shared_memory": "1",
+            "network_bw": "96GiB/s",
+            "local_memory_size": "134217728",
+            "group": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l1cache_2",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "verbose": "30",
+        "cache_frequency": "2GHz",
+        "cache_size": "32KiB",
+        "associativity": "8",
+        "access_latency_cycles": "4",
+        "L1": "1",
+        "maxRequestDelay": "1000000"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l2cache_2",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "cache_frequency": "2GHz",
+        "cache_size": "256KiB",
+        "associativity": "8",
+        "access_latency_cycles": "6",
+        "mshr_num_entries": "16"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "Opal.OpalMemNIC",
+          "params": {
+            "node": "0",
+            "shared_memory": "1",
+            "network_bw": "96GiB/s",
+            "local_memory_size": "134217728",
+            "group": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l1cache_3",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "verbose": "30",
+        "cache_frequency": "2GHz",
+        "cache_size": "32KiB",
+        "associativity": "8",
+        "access_latency_cycles": "4",
+        "L1": "1",
+        "maxRequestDelay": "1000000"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l2cache_3",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "cache_frequency": "2GHz",
+        "cache_size": "256KiB",
+        "associativity": "8",
+        "access_latency_cycles": "6",
+        "mshr_num_entries": "16"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "Opal.OpalMemNIC",
+          "params": {
+            "node": "0",
+            "shared_memory": "1",
+            "network_bw": "96GiB/s",
+            "local_memory_size": "134217728",
+            "group": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "l3cache",
+      "type": "memHierarchy.Cache",
+      "params": {
+        "cache_frequency": "2GHz",
+        "cache_size": "2MB",
+        "associativity": "16",
+        "access_latency_cycles": "12",
+        "mshr_num_entries": "4096",
+        "num_cache_slices": "1",
+        "slice_allocation_policy": "rr",
+        "slice_id": "0"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "Opal.OpalMemNIC",
+          "params": {
+            "node": "0",
+            "shared_memory": "1",
+            "network_bw": "96GiB/s",
+            "local_memory_size": "134217728",
+            "group": "2",
+            "addr_range_start": "0",
+            "addr_range_end": "134217727",
+            "interleave_size": "0B"
+          }
+        }
+      ]
+    },
+    {
+      "name": "local_memory",
+      "type": "memHierarchy.MemController",
+      "params": {
+        "clock": "1.2GHz",
+        "backing": "none",
+        "backend": "memHierarchy.timingDRAM",
+        "backend.id": "0",
+        "backend.addrMapper": "memHierarchy.roundRobinAddrMapper",
+        "backend.addrMapper.interleave_size": "64B",
+        "backend.addrMapper.row_size": "1KiB",
+        "backend.clock": "1.2GHz",
+        "backend.mem_size": "128MiB",
+        "backend.channels": "2",
+        "backend.channel.numRanks": "2",
+        "backend.channel.rank.numBanks": "16",
+        "backend.channel.transaction_Q_size": "32",
+        "backend.channel.rank.bank.CL": "14",
+        "backend.channel.rank.bank.CL_WR": "12",
+        "backend.channel.rank.bank.RCD": "14",
+        "backend.channel.rank.bank.TRP": "14",
+        "backend.channel.rank.bank.dataCycles": "2",
+        "backend.channel.rank.bank.pagePolicy": "memHierarchy.simplePagePolicy",
+        "backend.channel.rank.bank.transactionQ": "memHierarchy.fifoTransactionQ",
+        "backend.channel.rank.bank.pagePolicy.close": "1"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dc",
+      "type": "memHierarchy.DirectoryController",
+      "params": {
+        "clock": "200MHz",
+        "entry_cache_size": "268435456"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "Opal.OpalMemNIC",
+          "params": {
+            "node": "0",
+            "shared_memory": "1",
+            "network_bw": "96GiB/s",
+            "local_memory_size": "134217728",
+            "group": "3",
+            "addr_range_start": "0",
+            "addr_range_end": "134217727",
+            "interleave_size": "0B"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "0",
+            "shared_memory": "1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rtr_Ext_Mem_Net",
+      "type": "merlin.hr_router",
+      "params": {
+        "num_ports": "2",
+        "id": "1",
+        "link_bw": "80GiB/s",
+        "xbar_bw": "80GiB/s",
+        "flit_size": "8B",
+        "input_latency": "20ns",
+        "output_latency": "20ns",
+        "input_buf_size": "1KB",
+        "output_buf_size": "1KB"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "topology",
+          "slot_number": 0,
+          "type": "merlin.singlerouter"
+        }
+      ]
+    },
+    {
+      "name": "ExternalNVMmemContr",
+      "type": "memHierarchy.MemController",
+      "params": {
+        "clock": "2GHz",
+        "backing": "none",
+        "memory_size": "2048MB",
+        "max_requests_per_cycle": "4"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "backend",
+          "slot_number": 0,
+          "type": "memHierarchy.Messier",
+          "params": {
+            "clock": "2GHz",
+            "max_requests_per_cycle": "4",
+            "mem_size": "2048MB"
+          }
+        },
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink",
+          "params": {
+            "node": "9999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ExtMemDc",
+      "type": "memHierarchy.DirectoryController",
+      "params": {
+        "clock": "1GHz",
+        "entry_cache_size": "268435456"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "cpulink",
+          "slot_number": 0,
+          "type": "Opal.OpalMemNIC",
+          "params": {
+            "node": "9999",
+            "network_bw": "80GiB/s",
+            "group": "3",
+            "addr_range_start": "134217728",
+            "addr_range_end": "2281701375"
+          }
+        },
+        {
+          "slot_name": "memlink",
+          "slot_number": 0,
+          "type": "memHierarchy.MemLink"
+        }
+      ]
+    },
+    {
+      "name": "ExternalMem",
+      "type": "Messier",
+      "params": {
+        "clock": "2GHz",
+        "tCL": "30",
+        "tRCD": "300",
+        "tCL_W": "1000",
+        "write_buffer_size": "32",
+        "flush_th": "90",
+        "num_banks": "16",
+        "max_outstanding": "16",
+        "max_writes": "4",
+        "max_current_weight": "1600",
+        "read_weight": "5",
+        "write_weight": "5",
+        "cacheline_interleaving": "0"
+      }
+    },
+    {
+      "name": "rtr_Bridge",
+      "type": "merlin.hr_router",
+      "params": {
+        "num_ports": "2",
+        "id": "3",
+        "link_bw": "80GiB/s",
+        "xbar_bw": "80GiB/s",
+        "flit_size": "8B",
+        "input_latency": "50ps",
+        "output_latency": "50ps",
+        "input_buf_size": "1KB",
+        "output_buf_size": "1KB"
+      },
+      "subcomponents": [
+        {
+          "slot_name": "topology",
+          "slot_number": 0,
+          "type": "merlin.singlerouter"
+        }
+      ]
+    },
+    {
+      "name": "Bridge:internal_network-Bridge",
+      "type": "merlin.Bridge",
+      "params": {
+        "network_bw": "80GiB/s",
+        "translator": "memHierarchy.MemNetBridge"
+      }
+    },
+    {
+      "name": "Bridge:Ext_Mem_Net-Bridge",
+      "type": "merlin.Bridge",
+      "params": {
+        "network_bw": "80GiB/s",
+        "translator": "memHierarchy.MemNetBridge"
+      }
+    }
+  ],
+  "links": [
+    {
+      "name": "cpu_mmu_link_0",
+      "left": {
+        "component": "cpu",
+        "port": "cache_link_0",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "mmu",
+        "port": "cpu_to_mmu0",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "ariel_opal_0",
+      "left": {
+        "component": "cpu:memmgr[0]",
+        "port": "opal_link_0",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "opal",
+        "port": "coreLink0",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "mmu_cache_link_0",
+      "left": {
+        "component": "mmu",
+        "port": "mmu_to_cache0",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l1cache_0:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "ptw_opal_0",
+      "left": {
+        "component": "mmu:pagefaulthandler[0]",
+        "port": "opal_link_0",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "opal",
+        "port": "mmuLink0",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2cache_0_link",
+      "left": {
+        "component": "l1cache_0:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l2cache_0:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2_ring_link_0",
+      "left": {
+        "component": "l2cache_0:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "rtr_internal_network",
+        "port": "port0",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "cpu_mmu_link_1",
+      "left": {
+        "component": "cpu",
+        "port": "cache_link_1",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "mmu",
+        "port": "cpu_to_mmu1",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "ariel_opal_1",
+      "left": {
+        "component": "cpu:memmgr[0]",
+        "port": "opal_link_1",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "opal",
+        "port": "coreLink1",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "mmu_cache_link_1",
+      "left": {
+        "component": "mmu",
+        "port": "mmu_to_cache1",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l1cache_1:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "ptw_opal_1",
+      "left": {
+        "component": "mmu:pagefaulthandler[0]",
+        "port": "opal_link_1",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "opal",
+        "port": "mmuLink1",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2cache_1_link",
+      "left": {
+        "component": "l1cache_1:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l2cache_1:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2_ring_link_1",
+      "left": {
+        "component": "l2cache_1:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "rtr_internal_network",
+        "port": "port1",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "ptw_mem_link_2",
+      "left": {
+        "component": "mmu",
+        "port": "ptw_to_mem0",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l1cache_2:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2cache_2_link",
+      "left": {
+        "component": "l1cache_2:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l2cache_2:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2_ring_link_2",
+      "left": {
+        "component": "l2cache_2:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "rtr_internal_network",
+        "port": "port2",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "ptw_mem_link_3",
+      "left": {
+        "component": "mmu",
+        "port": "ptw_to_mem1",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l1cache_3:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2cache_3_link",
+      "left": {
+        "component": "l1cache_3:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "l2cache_3:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l2_ring_link_3",
+      "left": {
+        "component": "l2cache_3:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "rtr_internal_network",
+        "port": "port3",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "l3_link",
+      "left": {
+        "component": "l3cache:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "rtr_internal_network",
+        "port": "port4",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "mem_link",
+      "left": {
+        "component": "local_memory:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "dc:memlink[0]",
+        "port": "port",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "dc_link",
+      "left": {
+        "component": "dc:cpulink[0]",
+        "port": "port",
+        "latency": "300ps"
+      },
+      "right": {
+        "component": "rtr_internal_network",
+        "port": "port5",
+        "latency": "300ps"
+      }
+    },
+    {
+      "name": "External_mem_nvm_link",
+      "left": {
+        "component": "ExternalMem",
+        "port": "bus",
+        "latency": "50ps"
+      },
+      "right": {
+        "component": "ExternalNVMmemContr:backend[0]",
+        "port": "nvm_link",
+        "latency": "50ps"
+      }
+    },
+    {
+      "name": "External_mem_dc_link",
+      "left": {
+        "component": "ExtMemDc:memlink[0]",
+        "port": "port",
+        "latency": "500ps"
+      },
+      "right": {
+        "component": "ExternalNVMmemContr:cpulink[0]",
+        "port": "port",
+        "latency": "500ps"
+      }
+    },
+    {
+      "name": "External_mem_link",
+      "left": {
+        "component": "ExtMemDc:cpulink[0]",
+        "port": "port",
+        "latency": "500ps"
+      },
+      "right": {
+        "component": "rtr_Ext_Mem_Net",
+        "port": "port0",
+        "latency": "500ps"
+      }
+    },
+    {
+      "name": "B0-internal_network-Bridge",
+      "left": {
+        "component": "Bridge:internal_network-Bridge",
+        "port": "network0",
+        "latency": "500ps"
+      },
+      "right": {
+        "component": "rtr_internal_network",
+        "port": "port6",
+        "latency": "500ps"
+      }
+    },
+    {
+      "name": "B1-internal_network-Bridge",
+      "left": {
+        "component": "Bridge:internal_network-Bridge",
+        "port": "network1",
+        "latency": "500ps"
+      },
+      "right": {
+        "component": "rtr_Bridge",
+        "port": "port0",
+        "latency": "500ps"
+      }
+    },
+    {
+      "name": "B0-Ext_Mem_Net-Bridge",
+      "left": {
+        "component": "Bridge:Ext_Mem_Net-Bridge",
+        "port": "network0",
+        "latency": "500ps"
+      },
+      "right": {
+        "component": "rtr_Ext_Mem_Net",
+        "port": "port1",
+        "latency": "500ps"
+      }
+    },
+    {
+      "name": "B1-Ext_Mem_Net-Bridge",
+      "left": {
+        "component": "Bridge:Ext_Mem_Net-Bridge",
+        "port": "network1",
+        "latency": "500ps"
+      },
+      "right": {
+        "component": "rtr_Bridge",
+        "port": "port1",
+        "latency": "500ps"
+      }
+    }
+  ]
+}

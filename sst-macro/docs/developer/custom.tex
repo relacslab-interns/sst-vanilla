@@ -1,0 +1,141 @@
+% !TEX root = developer.tex
+
+\chapter{A Custom Object: Beginning To End}
+\label{chapter:custom}
+
+Suppose we have brilliant design for a new topology we want to test.
+We want to run a simple test \emph{without} having to modify the \sstmacro build system.
+We can create a simple external project that links the new topology object to \sstmacro libraries.
+The Makefile can be found in \inlineshell{tutorials/programming/topology}.
+You are free to make \emph{any} Makefile you want.
+After \sstmacro installs, it creates compiler wrappers \inlineshell{libsst++} and \inlineshell{libsstcc}
+in the chosen \inlineshell{bin} folder.  
+These are essentially analogs of the MPI compiler wrappers.
+This configures all include and linkage for the simulation.
+
+We want to make an experimental topology in a ring.
+Rather than a simple ring with connections to nearest neighbors, though, we will have ``express'' connections that jump to switches far away.
+
+We begin with the standard typedefs.
+
+\begin{CppCode}
+#include <sstmac/hardware/topology/structured_topology.h>
+
+namespace sstmac {
+namespace hw {
+
+class XpressRing :
+  public StructuredTopology
+{
+ public:
+  typedef enum {
+    up_port = 0,
+    down_port = 1,
+    jump_up_port = 2,
+    jump_down_port = 3
+  } port_t;
+
+  typedef enum {
+    jump = 0, step = 1
+  } stride_t;
+
+\end{CppCode} 
+Packets can either go to a nearest neighbor or they can ``jump'' to a switch further away.
+Each switch in the topology will need four ports for step/jump going up/down.
+The header file can be found in \inlineshell{tutorials/programm/topology/xpressring.h}.
+We now walk through each of the functions in turn in the source in the topology public interface.
+We got some functions for free by inheriting from \inlinecode{structured_topology}.
+
+We start with
+
+\begin{CppCode}
+XpressRing::XpressRing(SST::Params& params) :
+  StructuredTopology(params)
+{
+  ring_size_ = params.find<int>("xpress_ring_size");
+  jump_size_ = params.find<int>("xpress_jump_size");
+}
+\end{CppCode}
+determining how many switches are in the ring and how big a ``jump'' link is.
+
+The topology then needs to tell objects how to connect
+
+\begin{CppCode}
+void XpressRing::connectedOutports(SwitchId src, std::vector<connection>& conns)
+{
+  conns.resize(4); //every switch has 4 connections
+  auto& plusConn = conns[0];
+  plusConn.src = src;
+  plusConn.dst = (src+1) % ring_size_;
+  plusConn.src_outport = 0;
+  plusConn.dst_inport = 1; 
+  
+  auto& minusConn = conns[1];
+  minusConn.src = src;
+  minusConn.dst = (src -1 + ring_size) % ring_size_;
+  minusConn.src_outport = 1;
+  minusConn.dst_inport = 0;   
+  
+  auto& jumpUpConn = conns[2];
+  jumpUpConn.src = src;
+  jumpUpConn.dst = (src + jump_size_) % ring_size_;
+  jumpUpConn.src_outport = 2;
+  jumpUpConn.dst_inport = 3;
+  
+  auto& jumpDownConn = conns[2];
+  jumpDownConn.src = src;
+  jumpDownConn.dst = (src - jump_size_ + ring_size) % ring_size_;
+  jumpDownConn.src_outport = 3;
+  jumpDownConn.dst_inport = 2;
+}
+\end{CppCode}
+Each of the four connections get a different unique port number.  
+We must identify both the outport port for the sender and the input port for the receiver.
+
+To compute the distance between two switches
+
+\begin{CppCode}
+int XpressRing::numHops(int total_distance) const
+{
+  int num_jumps = total_distance / jump_size_;
+  int num_steps = total_distance % jump_size_;
+  int half_jump = jump_size_ / 2;
+  if (num_steps > half_jump) {
+    //take an extra jump
+    ++num_jumps;
+    num_steps = jump_size_ - num_steps;
+  }
+  return num_jumps + num_steps;
+}
+
+int
+XpressRing::minimalDistance(
+  const coordinates& src_coords,
+  const coordinates& dest_coords) const
+{
+  int src_pos = src_coords[0];
+  int dest_pos = dest_coords[0];
+  int up_distance = abs(dest_pos - src_pos);
+  int down_distance = abs(src_pos + ring_size_ - dest_pos);
+
+  int total_distance = std::max(up_distance, down_distance);
+  return num_hops(total_distance);
+}
+\end{CppCode}
+Essentially you compute the number of jumps to get close to the final destination and then the number of remaining single steps.
+
+We are now ready to use our topology in an application.
+In this case, we just demo with the built-in MPI ping all program from \sstmacro.
+Here every node in the network sends a point-to-point message to every other node.
+There is a parameter file in the \inlineshell{tutorials/programming/toplogy} folder.
+To specify the new topology
+
+\begin{ViFile}
+# Topology
+topology.name = xpress
+topology.xpress_ring_size = 10
+topology.xpress_jump_size = 5
+\end{ViFile}
+
+
+

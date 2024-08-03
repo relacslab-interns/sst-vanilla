@@ -1,0 +1,9 @@
+#! /usr/bin/env bash
+
+export PYTHONPATH=/home/grvosku/releases/12.1/build/sst-macro/include/python:/home/grvosku/releases/12.1/build/sst-macro/lib:$PYTHONPATH
+export SST_LIB_PATH=/home/grvosku/releases/12.1/build/sst-macro/lib:$SST_LIB_PATH
+
+options="$@"
+/home/grvosku/releases/12.1/build/sst-core/bin/sst /home/grvosku/releases/12.1/build/sst-macro/include/python/default.py --model-options="$options"
+
+

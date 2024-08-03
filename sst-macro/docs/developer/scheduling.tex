@@ -1,0 +1,122 @@
+% !TEX root = developer.tex
+
+
+\chapter{Discrete Event Simulation}
+\label{chapter:des}
+There are abundant tutorials on discrete event simulation around the web.
+To understand the basic control flow of \sstmacro simulations,
+you should consult Section 3.6, Discrete Event Simulation, in the user's manual.
+For here, it suffices to simply understand that objects schedule events to run at a specific time.
+When an event runs, it can create new events in the future.
+A simulation driver gradually progresses time, running events when their time stamp is reached.
+As discussed in the user's manual, we must be careful in the vocabulary.
+\emph{Simulation time} or \emph{simulated time} is the predicted time discrete events are happening in the simulated hardware.
+\emph{Wall time} or \emph{wall clock time} is the time \sstmacro itself has been running.
+There are a variety of classes the cooperate in driving the simulation, which we now describe.
+
+\section{Event Managers}
+\label{sec:eventManagers}
+The driver for simulations is an event manager that provides the function
+
+\begin{CppCode}
+virtual void schedule(TimeDelta start_time, Event* event) = 0;
+\end{CppCode}
+This function must receive events and order them according to timestamp.
+Two main types of data structures can be used, which we briefly describe below.
+
+The event manager also needs to provide
+
+\begin{CppCode}
+virtual void run() = 0;
+\end{CppCode}
+
+The termination condition can be:
+\begin{itemize}
+\item A termination timestamp is passed.  For example, a simulation might be specified to terminate after 100 simulation seconds. 
+Any pending events after 100 seconds are ignored and the simulation exits.
+\item The simulation runs out of events.  With nothing left to do, the simulation exits.
+\end{itemize}
+
+Events are stored in a queue (sorted by time)
+
+\begin{CppCode}
+namespace sstmac {
+
+class ExecutionEvent
+{
+ public:
+  virtual void execute() = 0;
+
+  ...
+};
+\end{CppCode}
+
+The execute function is invoked by the \evmgr to run the underlying event.
+There are generally two basic event types in \sstmacro, which we now introduce.
+
+\subsection{Event Handlers}
+\label{subsec:eventHandlers}
+In most cases, the event is represented as an event sent to an object called an \evhandler at a specific simulation time.
+In handling the event, the event handlers change their internal state and may cause more events
+by scheduling new events at other event handlers (or scheduling messages to itself) at a future time.
+
+In most cases, events are created by calling the function
+
+\begin{CppCode}
+auto* ev = newCallback(this, &Actor::act);
+\end{CppCode}
+
+This then creates a class of type \inlinecode{ExecutionEvent}, for which the execute function is
+
+\begin{CppCode}
+template <int ...S> void dispatch(seq<S...>){
+  (obj_->*fxn_)(std::get<S>(params_)...);
+}
+
+Fxn fxn_;
+Cls* obj_;
+std::tuple<Args...> params_;
+\end{CppCode}
+
+For example, given a class \inlinecode{Actor} with the member function \inlinecode{act}
+
+\begin{CppCode}
+void Actor::Actor(Event* ev, int ev_id){...}
+\end{CppCode}
+we can create an event handler
+
+\begin{CppCode}
+Actor* a = ....;
+auto* ev = newCallback(a, &actor::act, 42);
+schedule(time, , ev);
+\end{CppCode}
+When the time arrives for the event, the member function will be invoked
+
+\begin{CppCode}
+a->act(42);
+\end{CppCode}
+
+
+\subsection{Event Heap/Map}
+\label{subsec:eventHeap}
+The major distinction between different event containers is the data structured used.
+The simplest data structure is an event heap or ordered event map.
+The event manager needs to always be processing the minimum event time, which maps naturally onto a min-heap structure.
+Insertion and removal are therefore log(N) operations where N is the number of currently scheduled events.
+For most cases, the number and length of events is such that the min-heap is fine.
+
+\section{Event Schedulers}
+\label{sec:eventSchedulers}
+The simulation is partitioned into objects that are capable of scheduling events.
+Common examples of \evscheduler objects are nodes, NICs, memory systems, or the operating system.
+In serial runs, an event scheduler is essentially just a wrapper for the \evmgr and the class is not strictly necessary.
+There are two types of event scheduler: \inlinecode{Component} and \inlinecode{SubComponent}.
+In parallel simulation, though, the simulation must be partitioned into different scheduling units.
+Scheduling units are then distributed amongst the parallel processes.
+Components are the basic unit.  Currently only nodes and network switches are components.
+All other devices (NIC, memory, OS) are subcomponents that must be linked to a parent component.
+Even though components and subcomponents can both schedule events (both inherit from \evscheduler),
+all subcomponents must belong to a component.  A subcomponent cannot be separated from its parent component during parallel simulation.
+
+
+
