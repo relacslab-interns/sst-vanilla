@@ -95,7 +95,8 @@ Pin3Frontend::Pin3Frontend(ComponentId_t id, Params& params, uint32_t cores, uin
     } else {
         output->verbose(CALL_INFO, 1, 0, "Malloc map file is ENABLED, using file '%s'\n", malloc_map_filename.c_str());
     }
-
+    // yhnko ++ : fast-forwarding via skipcount
+    uint64_t skipcount = params.find<std::uint64_t>("skipcount", 0);
     tunnelmgr = new SST::Core::Interprocess::MMAPParent<ArielTunnel>(id, core_count, maxCoreQueueLen);
 
     std::string shmem_region_name = tunnelmgr->getRegionName();
@@ -209,6 +210,9 @@ Pin3Frontend::Pin3Frontend(ComponentId_t id, Params& params, uint32_t cores, uin
         execute_args[arg++] = (char*) malloc(sizeof(char) * (malloc_map_filename.size() + 1));
         strcpy(execute_args[arg-1], malloc_map_filename.c_str());
     }
+    execute_args[arg++] = const_cast<char*>("-skipcount");
+    execute_args[arg++] = (char*) malloc(sizeof(char) * 16);
+    sprintf(execute_args[arg-1], "%" PRIu64, skipcount);
     execute_args[arg++] = const_cast<char*>("-d");
     execute_args[arg++] = (char*) malloc(sizeof(char) * 8);
     sprintf(execute_args[arg-1], "%" PRIu32, defMemPool);
@@ -278,7 +282,12 @@ void Pin3Frontend::init(unsigned int phase)
     }
 }
 
-void Pin3Frontend::finish() { }
+void Pin3Frontend::finish() {
+    // yhnko ++ : this prevents child from entering zombie mode.
+    kill(child_pid, SIGTERM);
+    tunnel->clearBuffer(0);
+    waitpid(child_pid, nullptr, WNOHANG);
+ }
 
 ArielTunnel* Pin3Frontend::getTunnel() {
     return tunnel;

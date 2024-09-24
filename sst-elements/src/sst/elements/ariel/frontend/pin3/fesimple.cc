@@ -77,6 +77,8 @@ KNOB<UINT32> DefaultMemoryPool      (KNOB_MODE_WRITEONCE, "pintool", "d", "0", "
 // GPGPUSim
 KNOB<string> SSTNamedPipe2          (KNOB_MODE_WRITEONCE, "pintool", "g", "",  "Named pipe to connect to SST simulator");
 KNOB<string> SSTNamedPipe3          (KNOB_MODE_WRITEONCE, "pintool", "x", "",  "Named pipe to connect to SST simulator");
+// yhnko ++ : fast-forwarding via skipcount
+KNOB<UINT64> SkipCount          (KNOB_MODE_WRITEONCE, "pintool", "skipcount", "0", "# of instructions to skip before actual simulation. 0 = disabled");
 
 
 #define ARIEL_MAX(a,b) \
@@ -119,6 +121,9 @@ struct mallocFlagInfo {
     mallocFlagInfo(bool a, int b, int c, int d) : valid(a), count(b), level(c), id(d) {}
 };
 std::vector<mallocFlagInfo> toFast;
+
+uint64_t inst_count = 0;
+bool printed = false;
 
 // GPGPUSim
 #ifdef HAVE_CUDA
@@ -477,6 +482,19 @@ VOID WriteInstructionWriteOnly(THREADID thr, ADDRINT* writeAddr, UINT32 writeSiz
 
 }
 
+void mapped_ariel_enable();
+VOID PIN_FAST_ANALYSIS_CALL CountInst(THREADID thr){
+    if (thr != 0) return;
+    inst_count++;
+    if (inst_count%1000000000==0){
+        std::cout<<"ARIEL: Processing fast-forwarding... (" <<  inst_count << "/" << SkipCount.Value() << ")" <<std::endl;
+    }
+    if (inst_count >= SkipCount.Value() && !enable_output){
+        std::cout<< "Thread " << thr <<" has reached instruction count "<< inst_count << std::endl;
+        mapped_ariel_enable();
+    }
+}
+
 VOID IncrementFunctionRecord(VOID* funcRecord)
 {
     ArielFunctionRecord* arielFuncRec = (ArielFunctionRecord*) funcRecord;
@@ -491,6 +509,18 @@ VOID IncrementFunctionRecord(VOID* funcRecord)
 
 VOID InstrumentInstruction(INS ins, VOID *v)
 {
+    // yhnko ++ : fast-forwarding via skipcount
+    if(!enable_output){
+        if (SkipCount.Value() != 0){
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)
+                CountInst,
+                IARG_FAST_ANALYSIS_CALL,
+                IARG_THREAD_ID,
+                IARG_END);
+        }
+        return;
+    }
+
     UINT32 simdOpWidth     = 1;
     UINT32 instClass       = ARIEL_INST_UNKNOWN;
     UINT32 maxSIMDRegWidth = 1;
@@ -678,6 +708,7 @@ void mapped_ariel_enable()
 #endif
     /* ENABLE */
     enable_output = true;
+    PIN_RemoveInstrumentation();
 
     /* UNLOCK */
     PIN_ReleaseLock(&mainLock);
@@ -1653,16 +1684,38 @@ VOID InstrumentRoutine(RTN rtn, VOID* args)
         fprintf(rtnNameMap, "0x%" PRIx64 ", %s\n", RTN_Address(rtn), RTN_Name(rtn).c_str());
     }
 
-    if (RTN_Name(rtn) == "ariel_enable" || RTN_Name(rtn) == "_ariel_enable" || RTN_Name(rtn) == "__arielfort_MOD_ariel_enable") {
-        fprintf(stderr,"Identified routine: ariel_enable, replacing with Ariel equivalent...\n");
-        RTN_Replace(rtn, (AFUNPTR) mapped_ariel_enable);
-        fprintf(stderr,"Replacement complete.\n");
-        if (StartupMode.Value() == 2) {
-            fprintf(stderr, "Tool was called with auto-detect enable mode, setting initial output to not be traced.\n");
-            enable_output = false;
+        
+        /* yhnko ++: Somtimes, compiler changes the name of ariel_enable, and FE fails to find ariel_enable.
+         * Below code fixes this issue.
+         **/
+        SEC sec = RTN_Sec(rtn);
+        for( RTN rtn_ = SEC_RtnHead(sec); RTN_Valid(rtn_); rtn_ = RTN_Next(rtn_) ){
+            string name = RTN_Name(rtn_);
+            bool found = name.find("ariel_enable") != std::string::npos;
+            if (found){
+                // yhnko ++ : fast-forwarding via skipcount
+                if (SkipCount.Value() != 0) {
+                    if (!printed)
+                        fprintf(stderr,"Identified routine: ariel_enable, but will be ignored since skipcount is given.\n");
+                    printed = true;
+                }
+                else{
+                    if (!printed)
+                    fprintf(stderr,"Identified routine: ariel_enable, replacing with Ariel equivalent...\n");
+                        RTN_Replace(rtn_, (AFUNPTR) mapped_ariel_enable);
+                    if (StartupMode.Value() == 2) {
+                        if (!printed)
+                            fprintf(stderr, "Tool was called with auto-detect enable mode, setting initial output to not be traced.\n");
+                        enable_output = false;
+                    }
+                    printed = true;
+                }
+            }
         }
+        
+        
         return;
-    } else if (RTN_Name(rtn) == "gettimeofday" || RTN_Name(rtn) == "_gettimeofday") {
+    if (RTN_Name(rtn) == "gettimeofday" || RTN_Name(rtn) == "_gettimeofday") {
         fprintf(stderr,"Identified routine: gettimeofday, replacing with Ariel equivalent...\n");
         RTN_Replace(rtn, (AFUNPTR) mapped_gettimeofday);
         fprintf(stderr,"Replacement complete.\n");
@@ -1957,16 +2010,25 @@ int main(int argc, char *argv[])
     default_pool = DefaultMemoryPool.Value();
     fprintf(stderr, "ARIEL: Default memory pool set to %" PRIu32 "\n", default_pool);
 
-    if(StartupMode.Value() == 1) {
-        fprintf(stderr, "ARIEL: Tool is configured to begin with profiling immediately.\n");
-        enable_output = true;
-    } else if (StartupMode.Value() == 0) {
-        fprintf(stderr, "ARIEL: Tool is configured to suspend profiling until program control\n");
+    // yhnko ++
+    if (SkipCount.Value() != 0){
+        fprintf(stderr, "ARIEL: Detected non-zero SkipCount argument. Tool is configured to suspend profiling until given instruction count. (%lu)\n",\
+        SkipCount.Value());
+        fprintf(stderr, "ARIEL: Configuration given by \"arielmode\" will be overwritten. \n");
         enable_output = false;
-    } else if (StartupMode.Value() == 2) {
-        fprintf(stderr, "ARIEL: Tool is configured to attempt auto detect of profiling\n");
-        fprintf(stderr, "ARIEL: Initial mode will be to enable profiling unless ariel_enable function is located\n");
-        enable_output = true;
+    }
+    else{
+        if(StartupMode.Value() == 1) {
+            fprintf(stderr, "ARIEL: Tool is configured to begin with profiling immediately.\n");
+            enable_output = true;
+        } else if (StartupMode.Value() == 0) {
+            fprintf(stderr, "ARIEL: Tool is configured to suspend profiling until program control\n");
+            enable_output = false;
+        } else if (StartupMode.Value() == 2) {
+            fprintf(stderr, "ARIEL: Tool is configured to attempt auto detect of profiling\n");
+            fprintf(stderr, "ARIEL: Initial mode will be to enable profiling unless ariel_enable function is located\n");
+            enable_output = true;
+        }
     }
 
     /* If not using ariel_enable, then gettimeofday/clock_gettime always return simulated time */

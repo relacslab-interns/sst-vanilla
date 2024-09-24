@@ -62,7 +62,8 @@ class Pin3Frontend : public ArielFrontend {
         {"mallocmapfile", "File with valid 'ariel_malloc_flag' ids", ""},
         {"tracePrefix", "Prefix when tracing is enable", ""},
         {"writepayloadtrace", "Trace write payloads and put real memory contents into the memory system", "0"},
-        {"instrument_instructions", "turn on or off instruction instrumentation in fesimple", "1"})
+        {"instrument_instructions", "turn on or off instruction instrumentation in fesimple", "1"},
+        {"skipcount", "Number of instructions to skip before simulation. If non zero value is set, arielmode parameter will be overwritten.", "0"}) // yhnko ++ : fast-forwarding via skipcount
 
         /* Ariel class */
         Pin3Frontend(ComponentId_t id, Params& params, uint32_t cores, uint32_t qSize, uint32_t memPool);

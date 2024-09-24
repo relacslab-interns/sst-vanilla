@@ -73,7 +73,8 @@ class ArielCPU : public SST::Component {
         {"memmgr", "Memory manager to use for address translation", "ariel.MemoryManagerSimple"},
         {"writepayloadtrace", "Trace write payloads and put real memory contents into the memory system", "0"},
         {"instrument_instructions", "turn on or off instruction instrumentation in fesimple", "1"},
-        {"gpu_enabled", "If enabled, gpu links will be set up", "0"})
+        {"gpu_enabled", "If enabled, gpu links will be set up", "0"},
+        {"skipcount", "Number of instructions to skip before simulation. If non zero value is set, arielmode parameter will be overwritten.", "0"}) // yhnko ++ : fast-forwarding via skipcount
 
     SST_ELI_DOCUMENT_PORTS( {"cache_link_%(corecount)d", "Each core's link to its cache", {}},
        {"gpu_link_%(corecount)d", "Each core's link to the GPU", {}},
