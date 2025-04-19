@@ -343,55 +343,55 @@ int Pin3Frontend::forkPINChild(const char* app, char** args, std::map<std::strin
         child_pid = the_child;
 
         // This is the parent, return the PID of our child process
-    /* Wait a second, and check to see that the child actually started */
-    sleep(1);
-    int pstat;
-    pid_t check = waitpid(the_child, &pstat, WNOHANG);
-    if ( check > 0 ) {
-        // The child process is Stopped or Terminated.
-        // Ther are 3 possible results
-        if (WIFEXITED(pstat) == true) {
-            output->fatal(CALL_INFO, 1,
-                    "Launching trace child failed!  Child Exited with status %d\n",
-                    WEXITSTATUS(pstat));
-        }
-        else if (WIFSIGNALED(pstat) == true) {
-            output->fatal(CALL_INFO, 1,
-                    "Launching trace child failed!  Child Terminated With Signal %d; Core Dump File Created = %d\n",
-                    WTERMSIG(pstat), WCOREDUMP(pstat));
-        }
-        else if (WIFSTOPPED(pstat) == true) {
-            output->fatal(CALL_INFO, 1,
-                    "Launching trace child failed!  Child Stopped with Signal  %d\n",
-                    WSTOPSIG(pstat));
-        }
-        else {
-            output->fatal(CALL_INFO, 1,
-                "Launching trace child failed!  Unknown Problem; pstat = %d\n",
-                pstat);
-        }
+        /* Wait a second, and check to see that the child actually started */
+        sleep(1);
+        int pstat;
+        pid_t check = waitpid(the_child, &pstat, WNOHANG);
+        if ( check > 0 ) {
+            // The child process is Stopped or Terminated.
+            // Ther are 3 possible results
+            if (WIFEXITED(pstat) == true) {
+                output->fatal(CALL_INFO, 1,
+                        "Launching trace child failed!  Child Exited with status %d\n",
+                        WEXITSTATUS(pstat));
+            }
+            else if (WIFSIGNALED(pstat) == true) {
+                output->fatal(CALL_INFO, 1,
+                        "Launching trace child failed!  Child Terminated With Signal %d; Core Dump File Created = %d\n",
+                        WTERMSIG(pstat), WCOREDUMP(pstat));
+            }
+            else if (WIFSTOPPED(pstat) == true) {
+                output->fatal(CALL_INFO, 1,
+                        "Launching trace child failed!  Child Stopped with Signal  %d\n",
+                        WSTOPSIG(pstat));
+            }
+            else {
+                output->fatal(CALL_INFO, 1,
+                    "Launching trace child failed!  Unknown Problem; pstat = %d\n",
+                    pstat);
+            }
 
-    } else if ( check < 0 ) {
-        perror("waitpid");
-        output->fatal(CALL_INFO, 1,
-                "Waitpid returned an error, errno = %d.  Did the child ever even start?\n", errno);
-    }
+        } else if ( check < 0 ) {
+            perror("waitpid");
+            output->fatal(CALL_INFO, 1,
+                    "Waitpid returned an error, errno = %d.  Did the child ever even start?\n", errno);
+        }
         return (int) the_child;
     } else {
         output->verbose(CALL_INFO, 1, 0, "Launching executable: %s...\n", app);
 
         if(0 == app_env.size()) {
 #if defined(SST_COMPILE_MACOSX)
-        char *dyldpath = getenv("DYLD_LIBRARY_PATH");
+            char *dyldpath = getenv("DYLD_LIBRARY_PATH");
 
-        if(dyldpath) {
-            setenv("PIN_APP_DYLD_LIBRARY_PATH", dyldpath, 1);
-            setenv("PIN_DYLD_RESTORE_REQUIRED", "t", 1);
-            unsetenv("DYLD_LIBRARY_PATH");
-        }
+            if(dyldpath) {
+                setenv("PIN_APP_DYLD_LIBRARY_PATH", dyldpath, 1);
+                setenv("PIN_DYLD_RESTORE_REQUIRED", "t", 1);
+                unsetenv("DYLD_LIBRARY_PATH");
+            }
 #else
 #if defined(HAVE_SET_PTRACER)
-        prctl(PR_SET_PTRACER, getppid(), 0, 0 ,0);
+            prctl(PR_SET_PTRACER, getppid(), 0, 0 ,0);
 #endif // End of HAVE_SET_PTRACER
 #endif // End SST_COMPILE_MACOSX (else branch)
             int ret_code = execvp(app, args);
@@ -436,6 +436,10 @@ int Pin3Frontend::forkPINChild(const char* app, char** args, std::map<std::strin
 
 Pin3Frontend::~Pin3Frontend() {
     // Everything loaded by calls to the core are deleted by the core (subcomponents, component extension, etc.)
+    if (child_pid != 0) {
+        kill(child_pid, SIGKILL);
+    }
+
     delete tunnelmgr;
 #ifdef HAVE_CUDA
     delete tunnelRmgr;
