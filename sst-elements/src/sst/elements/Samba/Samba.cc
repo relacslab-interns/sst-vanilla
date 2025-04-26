@@ -164,6 +164,17 @@ void Samba::init(unsigned int phase) {
         SST::Event * ev;
         while ((ev = cpu_to_mmu[i]->recvInitData())) {
             mmu_to_cache[i]->sendInitData(ev);
+
+            /* PTW ports inits to let cache hierarchy be aware of these ports */
+            if (ptw_to_mem[i]==NULL) 
+                continue;
+
+            SST::MemHierarchy::MemEventInit* mEv = dynamic_cast<SST::MemHierarchy::MemEventInit*>(ev);
+            if (mEv && mEv->getInitCmd()==SST::MemHierarchy::MemEventInit::InitCommand::Region) {
+                SST::MemHierarchy::MemEventInitRegion* mEvR = static_cast<SST::MemHierarchy::MemEventInitRegion*>(mEv)->clone();
+                mEvR->setSrc(getName());
+                ptw_to_mem[i]->sendInitData(mEvR);
+            }
         }
 
         while ((ev = mmu_to_cache[i]->recvInitData())) {
@@ -175,21 +186,14 @@ void Samba::init(unsigned int phase) {
             cpu_to_mmu[i]->sendInitData(ev);
         }
 
-        /* PTW ports should be init from here to let cache recognize endpoint (hklee) */
-//        while ((ev = ptw_to_mem[i]->recvInitData())) {
-//            SST::MemHierarchy::MemEventInit* mev = dynamic_cast<SST::MemHierarchy::MemEventInit*>(ev);
-//            if (mev->getInitCmd()==SST::MemHierarchy::MemEventInit::InitCommand::Region) {
-//                SST::MemHierarchy::MemEventInitRegion* mev_region = static_cast<SST::MemHierarchy::MemEventInitRegion*>(mev);
-//                SST::MemHierarchy::MemLinkBase::EndpointInfo ep_info;
-//                ep_info.name = getName();
-//                ep_info.addr = 0;
-//                ep_info.id = 0;
-//                ep_info.region = mev_region->getRegion();
-//                SST::MemHierarchy::MemEventInitRegion * mev_region_resp = new SST::MemHierarchy::MemEventInitRegion(ep_info.name, ep_info.region, false);
-//                ptw_to_mem[i]->sendInitData(mev_region_resp);
-//            }
-//            delete ev;
-//        }
+        /* Since PTW ports is the source, passing events to cpu is not needed */
+        if (ptw_to_mem[i]==NULL) 
+            continue;
+
+        while ((ev = ptw_to_mem[i]->recvInitData())) {
+            SST::MemHierarchy::MemEventInit* mev = dynamic_cast<SST::MemHierarchy::MemEventInit*>(ev);
+            delete ev;
+        }
     }
 }
 
